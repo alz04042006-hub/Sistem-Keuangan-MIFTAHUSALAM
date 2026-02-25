@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem keuangan MTS</title>
+
+<style>
+body{
+    font-family: Arial;
+    background: linear-gradient(135deg,#a7620e,#16a085);
+    display:flex;
+    justify-content:center;
+    padding:30px;
+}
+.container{
+    background:rgb(203, 214, 207);
+    width:650px;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 10px 25px rgba(4, 126, 31, 0.2);
+}
+input,select,button{
+    width:100%;
+    padding:8px;
+    margin-top:8px;
+}
+button{
+    background:#27ae60;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
+button:hover{background:#1e8449;}
+.hapusBtn{background:#e74c3c;font-size:12px;}
+.logoutBtn{background:#34495e;margin-top:10px;}
+.printBtn{background:#2980b9;margin-top:10px;}
+table{
+    width:100%;
+    margin-top:15px;
+    border-collapse:collapse;
+}
+th,td{
+    padding:6px;
+    border-bottom:1px solid #ddd;
+    text-align:center;
+}
+.summary{
+    margin-top:10px;
+    background:#f4f6f8;
+    padding:10px;
+    border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container" id="loginPage">
+    <h2>🔐 Login Admin</h2>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+</div>
+
+<div class="container" id="mainPage" style="display:none;">
+    <h2>📋 Sistem Keuangan MIFTAHUSALAM</h2>
+    <p id="infoAdmin"></p>
+
+    <input type="text" id="nama" placeholder="Nama Muzaki">
+    <input type="text" id="jumlah" placeholder="Jumlah (50000 / 50.000)">
+    <select id="jenis">
+        <option value="Zakat">Zakat</option>
+        <option value="Infaq">Infaq</option>
+        <option value="Sedekah">Sedekah</option>
+    </select>
+
+    <button onclick="tambahData()">Tambah Data</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nama</th>
+                <th>Jenis</th>
+                <th>Jumlah</th>
+                <th>Input Oleh</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="dataTable"></tbody>
+    </table>
+
+    <div class="summary">
+        <p>Total Zakat: Rp <span id="totalZakat">0</span></p>
+        <p>Total Infaq: Rp <span id="totalInfaq">0</span></p>
+        <p>Total Sedekah: Rp <span id="totalSedekah">0</span></p>
+        <hr>
+        <strong>Total Keseluruhan: Rp <span id="totalSemua">0</span></strong>
+    </div>
+
+    <button class="printBtn" onclick="cetakPDF()">Cetak Laporan PDF</button>
+    <button class="logoutBtn" onclick="logout()">Logout</button>
+</div>
+
+<script>
+
+// ===== DAFTAR ADMIN =====
+let admins = [
+    {username:"mts", password:"12345", role:"super"},
+    {username:"bendahara", password:"12345", role:"admin"}
+];
+
+let currentAdmin = null;
+let dataKas = [];
+
+// ===== LOGIN =====
+function login(){
+    let user = document.getElementById("username").value;
+    let pass = document.getElementById("password").value;
+
+    let found = admins.find(a => a.username === user && a.password === pass);
+
+    if(found){
+        currentAdmin = found;
+        document.getElementById("loginPage").style.display="none";
+        document.getElementById("mainPage").style.display="block";
+        document.getElementById("infoAdmin").innerHTML =
+            "Login sebagai: <b>"+found.username+"</b> ("+found.role+")";
+        loadData();
+    }else{
+        alert("Username atau password salah!");
+    }
+}
+
+function logout(){
+    location.reload();
+}
+
+// ===== LOAD DATA =====
+function loadData(){
+    let simpan = localStorage.getItem("dataKasMulti");
+    if(simpan){
+        dataKas = JSON.parse(simpan);
+    }
+    tampilkanData();
+}
+
+// ===== TAMPILKAN DATA =====
+function tampilkanData(){
+    let table = document.getElementById("dataTable");
+    table.innerHTML="";
+
+    let totalZ=0,totalI=0,totalS=0;
+
+    dataKas.forEach((item,index)=>{
+        let row = table.insertRow();
+        row.insertCell(0).innerHTML=item.nama;
+        row.insertCell(1).innerHTML=item.jenis;
+        row.insertCell(2).innerHTML="Rp "+item.jumlah.toLocaleString("id-ID");
+        row.insertCell(3).innerHTML=item.inputBy;
+
+        let aksiCell = row.insertCell(4);
+
+        if(currentAdmin.role==="super"){
+            let btn=document.createElement("button");
+            btn.innerHTML="Hapus";
+            btn.className="hapusBtn";
+            btn.onclick=function(){hapusData(index)};
+            aksiCell.appendChild(btn);
+        }
+
+        if(item.jenis==="Zakat") totalZ+=item.jumlah;
+        if(item.jenis==="Infaq") totalI+=item.jumlah;
+        if(item.jenis==="Sedekah") totalS+=item.jumlah;
+    });
+
+    document.getElementById("totalZakat").innerHTML=totalZ.toLocaleString("id-ID");
+    document.getElementById("totalInfaq").innerHTML=totalI.toLocaleString("id-ID");
+    document.getElementById("totalSedekah").innerHTML=totalS.toLocaleString("id-ID");
+    document.getElementById("totalSemua").innerHTML=(totalZ+totalI+totalS).toLocaleString("id-ID");
+}
+
+// ===== TAMBAH DATA =====
+function tambahData(){
+    let nama=document.getElementById("nama").value;
+    let jumlahInput=document.getElementById("jumlah").value;
+    let jenis=document.getElementById("jenis").value;
+
+    let jumlah=parseInt(jumlahInput.replace(/\./g,""));
+
+    if(nama===""||isNaN(jumlah)){
+        alert("Isi data dengan benar!");
+        return;
+    }
+
+    dataKas.push({
+        nama,jenis,jumlah,
+        inputBy:currentAdmin.username
+    });
+
+    localStorage.setItem("dataKasMulti",JSON.stringify(dataKas));
+
+    document.getElementById("nama").value="";
+    document.getElementById("jumlah").value="";
+
+    tampilkanData();
+}
+
+// ===== HAPUS DATA =====
+function hapusData(index){
+    dataKas.splice(index,1);
+    localStorage.setItem("dataKasMulti",JSON.stringify(dataKas));
+    tampilkanData();
+}
+
+// ===== CETAK PDF =====
+function cetakPDF(){
+    window.print(); // bisa pilih "Save as PDF"
+}
+
+</script>
+
+</body>
+</html>
